@@ -7,8 +7,8 @@ namespace PhotoKeeper;
 /// </summary>
 public class KeeperDbContext : DbContext
 {
-    /// <inheritdoc cref="PhotoKeeper.PhotoDescriptor"/>
-    public DbSet<PhotoDescriptor> PhotoDescriptor { get; set; }
+    /// <inheritdoc cref="PhotoKeeper.FileDescriptor"/>
+    public DbSet<FileDescriptor> FileDescriptor { get; set; }
 
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder options)

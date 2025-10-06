@@ -1,9 +1,9 @@
 ﻿namespace PhotoKeeper;
 
 /// <summary>
-/// Дескриптор фотографии
+/// Дескриптор файла
 /// </summary>
-public class PhotoDescriptor
+public class FileDescriptor
 {
     /// <summary>
     /// Идентификатор
@@ -14,4 +14,9 @@ public class PhotoDescriptor
     /// Путь к файлу
     /// </summary>
     public required string Path { get; set; }
+
+    /// <summary>
+    /// MD5-хэш
+    /// </summary>
+    public required string Hash { get; set; }
 }

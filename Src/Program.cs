@@ -1,105 +1,40 @@
-﻿using Microsoft.Extensions.Configuration;
-using System.Security.Cryptography;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace PhotoKeeper;
 
 /// <summary>
-/// Приложение
+/// Стартовый класс приложения
 /// </summary>
 public class Program
 {
     /// <summary>
-    /// конфигурация приложения
-    /// </summary>
-    public static IConfigurationRoot Configuration { get; private set; } = null!;
-
-    /*
-    /// <summary>
-    /// провайдер сервисов
-    /// </summary>
-        public static ServiceProvider ServiceProvider { get; private set; } = null!;
-    */
-
-    /// <summary>
     /// Точка входа
     /// </summary>
-    static void Main()
+    static async Task Main(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+        // создание хоста, регистрация настроек и сервисов
+        var host = Host.CreateDefaultBuilder(args)
+            .ConfigureServices((context, services) =>
+            {
+                services.Configure<AppSettings>(context.Configuration);
+                services.AddSingleton<PhotoKeeperService>();
+            })
             .Build();
 
-        var appSettings = configuration.Get<AppSettings>()
-            ?? throw new Exception("Ошибка получения настроек");
+        // получение сервисов через DI
+        var appSettings = host.Services.GetRequiredService<IOptions<AppSettings>>().Value;
+        var photoKeeperService = host.Services.GetRequiredService<PhotoKeeperService>();
 
-        foreach (var dir in appSettings.StorageSettings.Directories)
-        {
-            var files = GetAllFilesRecursively(dir, appSettings.StorageSettings.FileExtensions);
+        using var cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = cancellationTokenSource.Token;
 
-            foreach (var file in files)
-                Console.WriteLine($"{file} ({CalculateMD5(file)})");
-        }
+        var result = await photoKeeperService.CreateFileDescriptors(cancellationToken);
 
-        // Проверка и создание файла БД
-        using var context = new KeeperDbContext();
-        context.Database.EnsureCreated();
-        Console.WriteLine($"База данных создана: {DbConstants.DbName}");
+        foreach (var item in result.Success)
+            Console.WriteLine($"{item}");
 
-        // Добавление данных
-        var descriptor = new PhotoDescriptor
-        {
-            Path = "C:\\Dev2"
-        };
-        context.Add(descriptor);
-        //context.SaveChanges();
-        Console.WriteLine("Всё ок!");
-
-
-        //try
-        //{
-        //    ServiceProvider = ConfigureServices(new WebHostEnvironment(env));
-        //}
-        //catch (Exception ex)
-        //{
-        //    writer.WriteLineError("Ошибка настройки сервисов");
-        //    writer.WriteException(ex);
-        //    throw;
-        //}
-
-        // вызываем сервис
-        //Run();
+        Console.WriteLine("OK!");
     }
-
-    /// <summary>
-    /// Рекурсивный поиск всех файлов в указанной директории
-    /// </summary>
-    /// <param name="dir"> директория поиска файлов </param>
-    /// <param name="searchPattern"> шаблон поиска </param>
-    /// <returns></returns>
-    private static IEnumerable<string> GetAllFilesRecursively(string dir, string[] searchPattern)
-    {
-        if (Directory.Exists(dir))
-            return Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories)
-                .Where(file => searchPattern.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase));
-
-        throw new DirectoryNotFoundException($"Директория не найдена: {dir}");
-    }
-
-    /// <summary>
-    /// Вычисление MD5-хэша файла
-    /// </summary>
-    /// <param name="filePath"> путь к файлу </param>
-    /// <returns></returns>
-    private static string CalculateMD5(string filePath)
-    {
-        if (!File.Exists(filePath))
-            throw new FileNotFoundException($"Файл не найден: {filePath}");
-
-        using var stream = File.OpenRead(filePath);
-        var hash = MD5.HashData(stream);
-
-        return Convert.ToHexString(hash);
-    }
-
 }
